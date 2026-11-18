@@ -12,7 +12,6 @@ const fmt = (ds) => { const d = new Date(ds + 'T00:00:00'); return `${d.getMonth
 const md = (ds) => { const d = new Date(ds + 'T00:00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; };
 const lvName = (lv) => S.data.levels[lv];
 const chip = (lv) => `<span class="chip lv${lv}" aria-hidden="true"></span><span class="lvname">${esc(lvName(lv))}</span>`;
-const topPct = (pct) => Math.max(1, Math.round(100 - pct));
 
 function localToday() {
   const t = new Date();
@@ -43,13 +42,13 @@ function viewToday() {
   <section>
     <h2>${esc(fmt(day.date))} 경주 전체</h2>
     <p class="big">${chip(day.level)}</p>
-    <p class="reasons">${esc(day.reasons.join(', '))}</p>
+    ${day.reasons.length ? `<p class="reasons">${esc(day.reasons.join(', '))}</p>` : ''}
     ${eventsHtml(day)}
-    <p class="note">2019년 이후 경주의 하루 중 상위 ${topPct(day.pct)}% 수준으로 봅니다. 외지인과 외국인 약 ${(day.pred / 10000).toFixed(1)}만 명을 예상합니다.</p>
+    <p class="note">외지인과 외국인 약 ${(day.pred / 10000).toFixed(1)}만 명 예상</p>
   </section>
   <section>
     <h2>장소별 오늘과 앞으로 7일</h2>
-    <p class="note">칸 하나가 하루입니다. 테두리 있는 칸은 주말입니다. 장소를 누르면 한 달 예보가 나옵니다.</p>
+    <p class="note">테두리 칸은 주말입니다.</p>
     <ul class="plist">${rows.map(({ p, d }) => `
       <li><a href="#place/${p.id}"><span class="pname">${esc(p.name)}</span>
         <span class="plv">${chip(d.level)}</span>
@@ -83,13 +82,12 @@ function viewCalendar() {
   return `
   <section>
     <h2>앞으로 한 달, 경주 전체</h2>
-    <p class="note">${esc(fmt(days[0].date))}부터 ${esc(fmt(days[days.length - 1].date))}까지입니다. 날짜를 누르면 그날 장소별 예보가 나옵니다.</p>
     ${html}
   </section>
   <section>
     <h2>${esc(fmt(day.date))}</h2>
     <p class="big">${chip(day.level)}</p>
-    <p class="reasons">${esc(day.reasons.join(', '))}</p>
+    ${day.reasons.length ? `<p class="reasons">${esc(day.reasons.join(', '))}</p>` : ''}
     ${eventsHtml(day)}
     <ul class="plist">${pl.map(({ p, d }) => `<li><a href="#place/${p.id}"><span class="pname">${esc(p.name)}</span><span class="plv">${chip(d.level)}</span><span class="go" aria-hidden="true">›</span></a></li>`).join('')}</ul>
   </section>`;
@@ -101,8 +99,7 @@ function viewPlaces() {
   const i = todayIdx();
   return `
   <section>
-    <h2>장소</h2>
-    <p class="note">오늘 단계와 앞으로 2주입니다.</p>
+    <h2>장소별 앞으로 2주</h2>
     <ul class="plist">${S.data.places.map((p) => `
       <li><a href="#place/${p.id}"><span class="pname">${esc(p.name)}<br><small class="note">${esc(p.area)}</small></span>
       <span class="strip">${p.days.slice(i, i + 14).map((d) => `<i class="lv${d.level}${dowOf(d.date) >= 5 ? ' we' : ''}" title="${esc(fmt(d.date) + ' ' + lvName(d.level))}"></i>`).join('')}</span>
@@ -138,9 +135,8 @@ function barChart(p, selIdx) {
 }
 function dayBox(p, k) {
   const d = p.days[k], c = S.data.days[k];
-  const rs = [...c.reasons.filter((r) => r !== 'HICO 큰 행사'), ...d.reasons, rainText(d.pop)].filter(Boolean);
+  const rs = [...c.reasons.filter((r) => r !== 'HICO 행사'), ...d.reasons, rainText(d.pop)].filter(Boolean);
   return `<div class="daybox"><b>${esc(fmt(d.date))}</b> ${chip(d.level)}
-    <p class="note">2019년 이후 경주의 하루와 견주면 상위 ${topPct(d.pct)}% 수준(자체 추정)${d.cnctr != null ? `, 관광공사 집중률 ${d.cnctr}` : ''}</p>
     <p class="reasons">${esc(rs.join(', '))}</p>${p.area === '보문' ? eventsHtml(c) : ''}</div>`;
 }
 function viewPlace(id) {
@@ -155,12 +151,12 @@ function viewPlace(id) {
   <a class="back" href="#places">‹ 장소 목록</a>
   <section>
     <h2>${esc(p.name)}</h2>
-    <p class="note">${esc(p.area)} 지역. 막대 높이는 평소와 견준 붐빔 정도이고 색은 단계입니다. 막대를 누르면 그날 이유가 나옵니다.</p>
+    <p class="note">막대를 누르면 그날 이유가 나옵니다.</p>
     <div id="chartwrap">${barChart(p, k)}</div>
     <div id="daybox">${dayBox(p, k)}</div>
     <details><summary>표로 보기</summary>
-      <table><thead><tr><th>날짜</th><th>단계</th><th class="num">상위</th><th class="num">집중률</th></tr></thead><tbody>
-      ${p.days.map((d) => `<tr><td>${esc(fmt(d.date))}</td><td>${esc(lvName(d.level))}</td><td class="num">${topPct(d.pct)}%</td><td class="num">${d.cnctr ?? ''}</td></tr>`).join('')}
+      <table><thead><tr><th>날짜</th><th>단계</th></tr></thead><tbody>
+      ${p.days.map((d) => `<tr><td>${esc(fmt(d.date))}</td><td>${esc(lvName(d.level))}</td></tr>`).join('')}
       </tbody></table></details>
   </section>
   <section>
@@ -168,8 +164,7 @@ function viewPlace(id) {
     <ul class="plist">${quiet.map(({ d, j }) => `<li><a href="#place/${p.id}" data-k="${j}" class="pick"><span class="pname">${esc(fmt(d.date))}</span><span class="plv">${chip(d.level)}</span></a></li>`).join('')}</ul>
     <h3>앞으로 2주 중 붐빌 날</h3>
     <ul class="plist">${busy.map(({ d, j }) => `<li><a href="#place/${p.id}" data-k="${j}" class="pick"><span class="pname">${esc(fmt(d.date))}</span><span class="plv">${chip(d.level)}</span></a></li>`).join('')}</ul>
-  </section>
-  <section><p class="note">관광공사 집중률 예보 이름: ${esc(p.cnctr_names.join(', '))}</p></section>`;
+  </section>`;
 }
 function bindPlace(id) {
   const p = placeById(id);
@@ -189,7 +184,7 @@ function bindPlace(id) {
   wrap.addEventListener('pointermove', (ev) => {
     if (ev.pointerType !== 'mouse') return;
     const k = idxAt(ev), d = p.days[k];
-    tip.innerHTML = `<b>${esc(fmt(d.date))}</b><br>${esc(lvName(d.level))}, 상위 ${topPct(d.pct)}%`;
+    tip.innerHTML = `<b>${esc(fmt(d.date))}</b><br>${esc(lvName(d.level))}`;
     tip.hidden = false;
     tip.style.left = Math.min(ev.clientX + 12, window.innerWidth - 250) + 'px';
     tip.style.top = ev.clientY + 12 + 'px';
@@ -212,8 +207,8 @@ function viewMap() {
   if (S.mapSel == null) S.mapSel = todayIdx();
   return `
   <section>
-    <h2>지도로 보기</h2>
-    <p class="note">원의 색과 크기가 붐빔 단계입니다. 진하고 클수록 붐빕니다. 원을 누르면 이유가 나옵니다.</p>
+    <h2>지도</h2>
+    <p class="note">진하고 클수록 붐빕니다.</p>
     <div class="dayrow" id="dayrow" aria-label="날짜 고르기">${days.map((d, j) => `
       <button data-j="${j}" aria-pressed="${j === S.mapSel}" aria-label="${esc(fmt(d.date) + ', 경주 전체 ' + lvName(d.level))}">
         <span>${md(d.date)}</span><span class="${d.dow >= 5 ? 'we' : ''}">${DOW[d.dow]}</span><i class="lv${d.level}"></i></button>`).join('')}
@@ -221,15 +216,13 @@ function viewMap() {
     <p id="mapcity" class="mapcity"></p>
     <div class="areas">${AREAS.map((a) => `<button data-area="${a}">${a}</button>`).join('')}</div>
     <div id="map" class="map" role="application" aria-label="경주 붐빔 지도"></div>
-    <p class="note">전체로 보면 지역마다 가장 붐비는 단계가 뜨고, 지역을 누르거나 확대하면 장소별 이름표가 나옵니다. 지도 © OpenStreetMap contributors. 원의 위치는 대략이고 범위는 붐빔 정도를 보여 주려고 그렸습니다.</p>
   </section>
   <section><h2 id="maplisth"></h2><ul class="plist" id="maplist"></ul></section>`;
 }
 function mapPopup(p) {
   const d = p.days[S.mapSel];
   const rs = [...d.reasons, rainText(d.pop)].filter(Boolean);
-  return `<b>${esc(p.name)}</b><br>${esc(fmt(d.date))} ${chip(d.level)}<br>
-    <span class="note">평소와 견주면 상위 ${topPct(d.pct)}% 수준(자체 추정)</span>
+  return `<b>${esc(p.name)}</b><br>${esc(fmt(d.date))} ${chip(d.level)}
     ${rs.length ? `<br>${esc(rs.join(', '))}` : ''}<br><a href="#place/${p.id}">한 달 예보 보기</a>`;
 }
 function bindMap() {
@@ -314,30 +307,29 @@ function viewBasis() {
   <section>
     <h2>만든 방법</h2>
     <p>한국관광공사가 이동통신 자료로 집계한 경주시 하루 방문자 수(외지인과 외국인)를 2019년부터 모아 예측 모델을 학습했습니다. 요일, 공휴일과 연휴, 계절, 작년 같은 때의 값, 최근 추세를 넣습니다.</p>
-    <p>방문자 실측은 한 달쯤 늦게 공개됩니다. 그래서 이 예보는 ${esc(fmt(D.last_actual))}까지의 실측으로 만들었고, 시험도 같은 조건(31일에서 60일 앞을 맞히기)으로 했습니다.</p>
-    <p>장소별 값은 경주 전체 예보에 관광공사 관광지 집중률 예보의 날짜별 높낮이를 얹은 자체 추정입니다. 장소별 실측 자료가 없어 이 값이 맞았는지는 아직 재지 못했습니다.</p>
+    <p>실측이 한 달쯤 늦게 공개되므로 이 예보는 ${esc(fmt(D.last_actual))}까지의 자료로 만들었습니다.</p>
+    <p>장소별 단계는 경주 전체 예보에 관광공사 집중률 예보의 날짜별 높낮이를 얹은 추정입니다. 장소별 실측이 없어 맞았는지는 아직 재지 못했습니다.</p>
     <p>단계는 2019년 이후(코로나 시기 제외) 경주의 하루 값을 줄 세워 하위 30%는 여유, 60%까지 보통, 80%까지 약간 붐빔, 95%까지 붐빔, 그 위를 매우 붐빔으로 나눴습니다.</p>
   </section>
   <section>
     <h2>예측 시험 결과</h2>
-    <p class="note">${esc(bt.test_start)}부터 ${esc(bt.test_end)}까지 12개월을 떼어 두고, 그 전 자료로만 학습해 맞혀 봤습니다. 시험 ${bt.n.toLocaleString()}건.</p>
+    <p class="note">${esc(bt.test_start)}부터 ${esc(bt.test_end)}까지 12개월을 떼어 두고 그 전 자료로 31일에서 60일 앞을 맞혀 봤습니다.</p>
     <table><thead><tr><th>방법</th><th class="num">오차율</th><th class="num">단계 맞힘</th><th class="num">붐빈 날 포착</th></tr></thead><tbody>
     ${bt.rows.map((r) => `<tr><td>${esc(label[r.key] || r.key)}</td><td class="num">${r.MAPE}%</td><td class="num">${r.level_exact}%</td><td class="num">${r.busy_recall}%</td></tr>`).join('')}
     </tbody></table>
-    <p class="note">오차율은 하루 방문자 수를 몇 % 틀렸는지의 평균입니다. 붐빈 날 포착은 실제로 붐빔 이상이었던 날 중 붐빔 이상으로 예보한 비율입니다. 시험 전에 정한 기준(가장 나은 단순 방법보다 오차율 10% 넘게 낮고, 붐빈 날은 더 놓치지 않을 것)을 ${bt.pass ? '넘어 이 모델을 씁니다' : '넘지 못해 단순 방법을 씁니다'}.</p>
+    <p class="note">오차율은 하루 방문자 수를 평균 몇 % 틀렸는지, 붐빈 날 포착은 실제 붐빔 이상인 날을 붐빔 이상으로 맞힌 비율입니다. 미리 정한 기준(가장 나은 단순 방법보다 오차율 10% 넘게 낮고 붐빈 날은 더 놓치지 않을 것)을 ${bt.pass ? '넘어 이 모델을 씁니다' : '넘지 못해 단순 방법을 씁니다'}.</p>
   </section>
   <section>
     <h2>한계</h2>
-    <p>비 예보와 HICO 행사는 점수에 넣지 않고 이유로만 보여 줍니다. 과거 날씨와 행사 자료로 학습하지 않았기 때문입니다. 시간대별 붐빔과 골목 단위 붐빔은 공개 자료가 없어 다루지 않습니다.</p>
+    <p>비 예보와 HICO 행사는 점수에 넣지 않고 이유로만 보여 줍니다. 시간대별, 골목 단위 붐빔은 공개 자료가 없어 다루지 않습니다.</p>
   </section>
   <section>
     <h2>자료 출처</h2>
-    <ul class="events">${D.sources.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a>. ${esc(s.use)}</li>`).join('')}</ul>
+    <ul class="events">${D.sources.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a></li>`).join('')}</ul>
   </section>
   <section>
     <h2>AI 활용</h2>
-    <p>자료 찾기, 설계, 분석 코드, 화면 코드는 생성형 AI인 Claude(Anthropic)와 대화하며 만들었습니다. 무엇을 만들지, 어떤 자료를 쓰고 뺄지, 결과를 믿을지는 사람이 정했습니다.</p>
-    <p class="note">예보 만든 때 ${esc(D.generated_at)}</p>
+    <p>자료 찾기, 설계, 분석 코드, 화면 코드는 생성형 AI인 Claude(Anthropic)와 함께 만들었습니다. 무엇을 만들고 무엇을 믿을지는 사람이 정했습니다.</p>
   </section>`;
 }
 
@@ -369,7 +361,7 @@ fetch('data/forecast.json', { cache: 'no-cache' })
   .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
   .then((data) => {
     S.data = data;
-    $('#sub').textContent = `${fmt(data.generated)} 만든 예보. 공공데이터로 본 한 달 붐빔입니다.`;
+    $('#sub').textContent = `${fmt(data.generated)} 기준 한 달 예보`;
     $('#legend').innerHTML = data.levels.map((n, k) => `<span><span class="chip lv${k}" aria-hidden="true"></span>${esc(n)}</span>`).join('');
     route();
   })
