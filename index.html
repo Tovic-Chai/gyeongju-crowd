@@ -6,6 +6,7 @@
 <title>경주 붐빔 예보</title>
 <meta name="description" content="공공데이터로 만든 경주 장소별 한 달 붐빔 예보">
 <meta name="theme-color" content="#1c5cab">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,11 +18,13 @@
 <main id="view" tabindex="-1"></main>
 <nav class="tabs" aria-label="화면 바꾸기">
   <a href="#today" data-tab="today">오늘</a>
+  <a href="#map" data-tab="map">지도</a>
   <a href="#calendar" data-tab="calendar">달력</a>
   <a href="#places" data-tab="places">장소</a>
   <a href="#basis" data-tab="basis">근거</a>
 </nav>
 <div id="tip" class="tip" role="tooltip" hidden></div>
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

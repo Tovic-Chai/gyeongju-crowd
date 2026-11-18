@@ -201,6 +201,111 @@ function bindPlace(id) {
   }));
 }
 
+// ---------------------------------------------------------------- 지도
+const AREAS = ['전체', '시내', '보문', '불국사'];
+const LABEL_OFFSET = { left: [-10, 0], right: [10, 0], top: [0, -10], bottom: [0, 10] };
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const rangeOf = (lv) => 220 + lv * 70; // 원의 반지름(m). 단계가 높을수록 넓게.
+
+function viewMap() {
+  const days = S.data.days;
+  if (S.mapSel == null) S.mapSel = todayIdx();
+  return `
+  <section>
+    <h2>지도로 보기</h2>
+    <p class="note">원의 색과 크기가 붐빔 단계입니다. 진하고 클수록 붐빕니다. 원을 누르면 이유가 나옵니다.</p>
+    <div class="dayrow" id="dayrow" aria-label="날짜 고르기">${days.map((d, j) => `
+      <button data-j="${j}" aria-pressed="${j === S.mapSel}" aria-label="${esc(fmt(d.date) + ', 경주 전체 ' + lvName(d.level))}">
+        <span>${md(d.date)}</span><span class="${d.dow >= 5 ? 'we' : ''}">${DOW[d.dow]}</span><i class="lv${d.level}"></i></button>`).join('')}
+    </div>
+    <p id="mapcity" class="mapcity"></p>
+    <div class="areas">${AREAS.map((a) => `<button data-area="${a}">${a}</button>`).join('')}</div>
+    <div id="map" class="map" role="application" aria-label="경주 붐빔 지도"></div>
+    <p class="note">전체로 보면 지역마다 가장 붐비는 단계가 뜨고, 지역을 누르거나 확대하면 장소별 이름표가 나옵니다. 지도 © OpenStreetMap contributors. 원의 위치는 대략이고 범위는 붐빔 정도를 보여 주려고 그린 것입니다.</p>
+  </section>
+  <section><h2 id="maplisth"></h2><ul class="plist" id="maplist"></ul></section>`;
+}
+function mapPopup(p) {
+  const d = p.days[S.mapSel];
+  const rs = [...d.reasons, rainText(d.pop)].filter(Boolean);
+  return `<b>${esc(p.name)}</b><br>${esc(fmt(d.date))} ${chip(d.level)}<br>
+    <span class="note">평소와 견주면 상위 ${topPct(d.pct)}% 수준(자체 추정)</span>
+    ${rs.length ? `<br>${esc(rs.join(', '))}` : ''}<br><a href="#place/${p.id}">한 달 예보 보기</a>`;
+}
+function bindMap() {
+  if (typeof L === 'undefined') { $('#map').innerHTML = '<p class="err">지도 라이브러리를 읽지 못했습니다.</p>'; return; }
+  const map = L.map('map', { scrollWheelZoom: false, zoomSnap: 0.5 });
+  S.map = map;
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+  // 지역 이름표: 전체로 볼 때만 보인다
+  S.areaMarks = AREAS.slice(1).map((area) => {
+    const ps = S.data.places.filter((p) => p.area === area);
+    const lat = ps.reduce((a, p) => a + p.lat, 0) / ps.length, lon = ps.reduce((a, p) => a + p.lon, 0) / ps.length;
+    const m = L.marker([lat, lon], { icon: L.divIcon({ className: 'areamark', html: '', iconSize: null }), keyboard: true });
+    m.on('click', () => fitArea(area));
+    return { area, ps, m };
+  });
+  S.mapLayers = S.data.places.map((p) => {
+    const range = L.circle([p.lat, p.lon], { radius: rangeOf(0), weight: 2, fillOpacity: 0.32 }).addTo(map);
+    const dot = L.circleMarker([p.lat, p.lon], { radius: 7, weight: 2, color: cssVar('--surface'), fillOpacity: 1 }).addTo(map);
+    dot.bindTooltip('', { permanent: true, direction: p.dir, offset: LABEL_OFFSET[p.dir] || [0, 0], className: 'maplabel' });
+    dot.bindPopup('', { maxWidth: 240 });
+    const open = () => { dot.setPopupContent(mapPopup(p)); dot.openPopup(); };
+    range.on('click', open);
+    dot.on('click', open);
+    return { p, range, dot };
+  });
+  map.on('zoomend', labelsForZoom);
+  fitArea('전체');
+  document.querySelectorAll('.areas button').forEach((b) => b.addEventListener('click', () => fitArea(b.dataset.area)));
+  document.querySelectorAll('#dayrow button').forEach((b) => b.addEventListener('click', () => { S.mapSel = +b.dataset.j; updateMap(); }));
+  updateMap();
+  setTimeout(() => map.invalidateSize(), 60);
+}
+const LABEL_ZOOM = 13.5;
+function fitArea(area) {
+  const pts = S.data.places.filter((p) => area === '전체' || p.area === area).map((p) => [p.lat, p.lon]);
+  S.map.fitBounds(pts, area === '전체' ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, 20], maxZoom: 13, animate: false } : { paddingTopLeft: [84, 46], paddingBottomRight: [84, 46], maxZoom: 15, animate: false });
+}
+function labelsForZoom() {
+  if (!S.map) return;
+  const near = S.map.getZoom() >= LABEL_ZOOM;
+  S.mapLayers.forEach(({ dot }) => (near ? dot.openTooltip() : dot.closeTooltip()));
+  S.areaMarks.forEach(({ m }) => (near ? m.remove() : m.addTo(S.map)));
+}
+function updateMap() {
+  const k = S.mapSel, day = S.data.days[k];
+  S.areaMarks.forEach(({ area, ps, m }) => {
+    const top = Math.max(...ps.map((p) => p.days[k].level));
+    m.setIcon(L.divIcon({ className: 'areamark', iconSize: null,
+      html: `<div><b>${esc(area)}</b> ${ps.length}곳<br><span class="chip lv${top}"></span> ${esc(lvName(top))}까지</div>` }));
+  });
+  S.mapLayers.forEach(({ p, range, dot }) => {
+    const d = p.days[k], c = cssVar(`--lv${d.level}`);
+    range.setStyle({ color: c, fillColor: c });
+    range.setRadius(rangeOf(d.level));
+    dot.setStyle({ fillColor: c });
+    dot.setTooltipContent(`<b>${esc(p.short)}</b><br>${esc(lvName(d.level))}`);
+    if (dot.isPopupOpen()) dot.setPopupContent(mapPopup(p));
+  });
+  // 덜 붐비는 곳을 먼저 그려 붐비는 곳의 원이 위로 오게 한다
+  S.mapLayers.slice().sort((a, b) => a.p.days[k].level - b.p.days[k].level).forEach(({ range }) => range.bringToFront());
+  S.mapLayers.forEach(({ dot }) => dot.bringToFront());
+  labelsForZoom();
+  $('#mapcity').innerHTML = `<b>${esc(fmt(day.date))}</b> 경주 전체 ${chip(day.level)} <span class="note">${esc(day.reasons.join(', '))}</span>`;
+  document.querySelectorAll('#dayrow button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.j === k)));
+  const sel = document.querySelector(`#dayrow button[data-j="${k}"]`);
+  const row = $('#dayrow');
+  if (sel && row) row.scrollLeft = sel.offsetLeft - row.clientWidth / 2 + sel.clientWidth / 2;
+  $('#maplisth').textContent = `${fmt(day.date)} 장소별`;
+  $('#maplist').innerHTML = S.data.places.map((p) => ({ p, d: p.days[k] }))
+    .sort((a, b) => b.d.level - a.d.level || b.d.pct - a.d.pct)
+    .map(({ p, d }) => `<li><a href="#place/${p.id}"><span class="pname">${esc(p.name)}</span><span class="plv">${chip(d.level)}</span><span class="go" aria-hidden="true">›</span></a></li>`).join('');
+}
+
 // ---------------------------------------------------------------- 근거
 function viewBasis() {
   const D = S.data, bt = D.backtest;
@@ -243,18 +348,21 @@ function route() {
   const [tab, arg] = h.split('/');
   const view = $('#view');
   $('#tip').hidden = true;
-  if (tab === 'calendar') view.innerHTML = viewCalendar();
+  if (S.map) { S.map.remove(); S.map = null; }
+  if (tab === 'map') view.innerHTML = viewMap();
+  else if (tab === 'calendar') view.innerHTML = viewCalendar();
   else if (tab === 'places') view.innerHTML = viewPlaces();
   else if (tab === 'place') view.innerHTML = viewPlace(arg);
   else if (tab === 'basis') view.innerHTML = viewBasis();
   else view.innerHTML = viewToday();
-  const cur = tab === 'place' ? 'places' : (['calendar', 'places', 'basis'].includes(tab) ? tab : 'today');
+  const cur = tab === 'place' ? 'places' : (['map', 'calendar', 'places', 'basis'].includes(tab) ? tab : 'today');
   document.querySelectorAll('.tabs a').forEach((a) => { if (a.dataset.tab === cur) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   if (tab === 'calendar') {
     view.querySelectorAll('.cal button').forEach((b) => b.addEventListener('click', () => { S.calSel = b.dataset.date; route(); }));
   }
   if (tab === 'place') bindPlace(arg);
   window.scrollTo(0, 0);
+  if (tab === 'map') bindMap();
 }
 
 fetch('data/forecast.json', { cache: 'no-cache' })
