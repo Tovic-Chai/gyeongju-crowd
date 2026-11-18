@@ -45,7 +45,7 @@ function viewToday() {
     <p class="big">${chip(day.level)}</p>
     <p class="reasons">${esc(day.reasons.join(', '))}</p>
     ${eventsHtml(day)}
-    <p class="note">2019년 이후 경주의 하루 가운데 상위 ${topPct(day.pct)}% 수준으로 봅니다. 외지인과 외국인 약 ${(day.pred / 10000).toFixed(1)}만 명 예상.</p>
+    <p class="note">2019년 이후 경주의 하루 중 상위 ${topPct(day.pct)}% 수준으로 봅니다. 외지인과 외국인 약 ${(day.pred / 10000).toFixed(1)}만 명을 예상합니다.</p>
   </section>
   <section>
     <h2>장소별 오늘과 앞으로 7일</h2>
@@ -164,9 +164,9 @@ function viewPlace(id) {
       </tbody></table></details>
   </section>
   <section>
-    <h3>앞으로 2주 가운데 한산할 날</h3>
+    <h3>앞으로 2주 중 한산할 날</h3>
     <ul class="plist">${quiet.map(({ d, j }) => `<li><a href="#place/${p.id}" data-k="${j}" class="pick"><span class="pname">${esc(fmt(d.date))}</span><span class="plv">${chip(d.level)}</span></a></li>`).join('')}</ul>
-    <h3>앞으로 2주 가운데 붐빌 날</h3>
+    <h3>앞으로 2주 중 붐빌 날</h3>
     <ul class="plist">${busy.map(({ d, j }) => `<li><a href="#place/${p.id}" data-k="${j}" class="pick"><span class="pname">${esc(fmt(d.date))}</span><span class="plv">${chip(d.level)}</span></a></li>`).join('')}</ul>
   </section>
   <section><p class="note">관광공사 집중률 예보 이름: ${esc(p.cnctr_names.join(', '))}</p></section>`;
@@ -221,7 +221,7 @@ function viewMap() {
     <p id="mapcity" class="mapcity"></p>
     <div class="areas">${AREAS.map((a) => `<button data-area="${a}">${a}</button>`).join('')}</div>
     <div id="map" class="map" role="application" aria-label="경주 붐빔 지도"></div>
-    <p class="note">전체로 보면 지역마다 가장 붐비는 단계가 뜨고, 지역을 누르거나 확대하면 장소별 이름표가 나옵니다. 지도 © OpenStreetMap contributors. 원의 위치는 대략이고 범위는 붐빔 정도를 보여 주려고 그린 것입니다.</p>
+    <p class="note">전체로 보면 지역마다 가장 붐비는 단계가 뜨고, 지역을 누르거나 확대하면 장소별 이름표가 나옵니다. 지도 © OpenStreetMap contributors. 원의 위치는 대략이고 범위는 붐빔 정도를 보여 주려고 그렸습니다.</p>
   </section>
   <section><h2 id="maplisth"></h2><ul class="plist" id="maplist"></ul></section>`;
 }
@@ -233,7 +233,7 @@ function mapPopup(p) {
     ${rs.length ? `<br>${esc(rs.join(', '))}` : ''}<br><a href="#place/${p.id}">한 달 예보 보기</a>`;
 }
 function bindMap() {
-  if (typeof L === 'undefined') { $('#map').innerHTML = '<p class="err">지도 라이브러리를 읽지 못했습니다.</p>'; return; }
+  if (typeof L === 'undefined') { $('#map').innerHTML = '<p class="err">지도를 불러오지 못했습니다.</p>'; return; }
   const map = L.map('map', { scrollWheelZoom: false, zoomSnap: 0.5 });
   S.map = map;
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -309,22 +309,22 @@ function updateMap() {
 // ---------------------------------------------------------------- 근거
 function viewBasis() {
   const D = S.data, bt = D.backtest;
-  const label = { B0: '작년 같은 요일 값', B1: '작년 값에 최근 추세를 곱함', M: '이 앱의 모델' };
+  const label = { B0: '작년 같은 요일 값', B1: '작년 값에 최근 추세 곱하기', M: '이 앱의 모델' };
   return `
   <section>
-    <h2>이렇게 만들었습니다</h2>
+    <h2>만든 방법</h2>
     <p>한국관광공사가 이동통신 자료로 집계한 경주시 하루 방문자 수(외지인과 외국인)를 2019년부터 모아 예측 모델을 학습했습니다. 요일, 공휴일과 연휴, 계절, 작년 같은 때의 값, 최근 추세를 넣습니다.</p>
     <p>방문자 실측은 한 달쯤 늦게 공개됩니다. 그래서 이 예보는 ${esc(fmt(D.last_actual))}까지의 실측으로 만들었고, 시험도 같은 조건(31일에서 60일 앞을 맞히기)으로 했습니다.</p>
-    <p>장소별 값은 경주 전체 예보에 관광공사 관광지 집중률 예보의 날짜별 높낮이를 얹은 자체 추정입니다. 장소별 실측 자료가 없어 장소 값이 맞았는지는 아직 재지 못했습니다.</p>
+    <p>장소별 값은 경주 전체 예보에 관광공사 관광지 집중률 예보의 날짜별 높낮이를 얹은 자체 추정입니다. 장소별 실측 자료가 없어 이 값이 맞았는지는 아직 재지 못했습니다.</p>
     <p>단계는 2019년 이후(코로나 시기 제외) 경주의 하루 값을 줄 세워 하위 30%는 여유, 60%까지 보통, 80%까지 약간 붐빔, 95%까지 붐빔, 그 위를 매우 붐빔으로 나눴습니다.</p>
   </section>
   <section>
     <h2>예측 시험 결과</h2>
     <p class="note">${esc(bt.test_start)}부터 ${esc(bt.test_end)}까지 12개월을 떼어 두고, 그 전 자료로만 학습해 맞혀 봤습니다. 시험 ${bt.n.toLocaleString()}건.</p>
-    <table><thead><tr><th>방법</th><th class="num">오차율</th><th class="num">단계 맞힘</th><th class="num">붐빈 날 잡음</th></tr></thead><tbody>
+    <table><thead><tr><th>방법</th><th class="num">오차율</th><th class="num">단계 맞힘</th><th class="num">붐빈 날 포착</th></tr></thead><tbody>
     ${bt.rows.map((r) => `<tr><td>${esc(label[r.key] || r.key)}</td><td class="num">${r.MAPE}%</td><td class="num">${r.level_exact}%</td><td class="num">${r.busy_recall}%</td></tr>`).join('')}
     </tbody></table>
-    <p class="note">오차율은 하루 방문자 수를 몇 % 틀렸는지의 평균입니다. 붐빈 날 잡음은 실제로 붐빔 이상이었던 날 가운데 붐빔 이상으로 예보한 비율입니다. 시험 전에 정한 기준(가장 나은 단순 방법보다 오차율 10% 넘게 낮고, 붐빈 날도 덜 놓치지 않을 것)을 ${bt.pass ? '넘어 이 모델을 씁니다' : '넘지 못해 단순 방법을 씁니다'}.</p>
+    <p class="note">오차율은 하루 방문자 수를 몇 % 틀렸는지의 평균입니다. 붐빈 날 포착은 실제로 붐빔 이상이었던 날 중 붐빔 이상으로 예보한 비율입니다. 시험 전에 정한 기준(가장 나은 단순 방법보다 오차율 10% 넘게 낮고, 붐빈 날은 더 놓치지 않을 것)을 ${bt.pass ? '넘어 이 모델을 씁니다' : '넘지 못해 단순 방법을 씁니다'}.</p>
   </section>
   <section>
     <h2>한계</h2>
