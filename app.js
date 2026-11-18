@@ -261,7 +261,7 @@ function bindMap() {
 const LABEL_ZOOM = 13.5;
 function fitArea(area) {
   const pts = S.data.places.filter((p) => area === '전체' || p.area === area).map((p) => [p.lat, p.lon]);
-  S.map.fitBounds(pts, area === '전체' ? { paddingTopLeft: [12, 70], paddingBottomRight: [12, 20], maxZoom: 13, animate: false } : { paddingTopLeft: [84, 46], paddingBottomRight: [84, 46], maxZoom: 15, animate: false });
+  S.map.fitBounds(pts, area === '전체' ? { paddingTopLeft: [60, 70], paddingBottomRight: [60, 20], maxZoom: 13, animate: false } : { paddingTopLeft: [84, 46], paddingBottomRight: [84, 46], maxZoom: 15, animate: false });
 }
 function labelsForZoom() {
   if (!S.map) return;
